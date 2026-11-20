@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uploader</title>
+<style>
+  :root { --bg:#0f1115; --card:#181b22; --line:#2a2f3a; --text:#e6e8ee; --muted:#8b93a7;
+          --accent:#4f7cff; --ok:#22c55e; --bad:#ef4444; --warn:#f59e0b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,Segoe UI,sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:16px 24px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:16px; }
+  header h1 { font-size:18px; margin:0; }
+  main { max-width:1100px; margin:0 auto; padding:24px; display:grid; grid-template-columns: 1fr 1fr; gap:24px; }
+  @media (max-width: 900px) { main { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; }
+  .card h2 { font-size:15px; margin:0 0 14px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+  label { display:block; font-size:13px; color:var(--muted); margin:12px 0 6px; }
+  input[type=text], textarea, select, input[type=datetime-local] {
+    width:100%; background:#0f1115; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:9px 10px; font:inherit; }
+  textarea { min-height:80px; resize:vertical; }
+  button { background:var(--accent); color:white; border:0; border-radius:8px; padding:9px 14px; font:inherit; cursor:pointer; }
+  button.secondary { background:#2a2f3a; }
+  button.small { padding:4px 10px; font-size:12px; }
+  button:disabled { opacity:.5; cursor:default; }
+  #drop { border:2px dashed var(--line); border-radius:12px; padding:28px; text-align:center; color:var(--muted); cursor:pointer; }
+  #drop.over { border-color:var(--accent); color:var(--text); }
+  #preview { width:100%; max-height:320px; border-radius:8px; margin-top:10px; display:none; background:#000; }
+  .platform { border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-top:12px; }
+  .platform-head { display:flex; align-items:center; gap:10px; font-weight:600; }
+  .platform-body { display:none; }
+  .platform.on .platform-body { display:block; }
+  .platform.disabled { opacity:.5; }
+  .tag { font-size:11px; padding:2px 8px; border-radius:99px; background:#2a2f3a; color:var(--muted); font-weight:500; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .acct { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); gap:10px; }
+  .acct:last-child { border-bottom:0; }
+  .dot { width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:8px; background:var(--bad); }
+  .dot.ok { background:var(--ok); }
+  .post { border-bottom:1px solid var(--line); padding:12px 0; }
+  .post:last-child { border-bottom:0; }
+  .job { display:flex; justify-content:space-between; gap:10px; font-size:13px; padding:4px 0; align-items:center; }
+  .st-done { color:var(--ok); } .st-failed { color:var(--bad); } .st-uploading { color:var(--accent); }
+  .st-pending { color:var(--warn); } .st-cancelled { color:var(--muted); }
+  .err { color:var(--bad); font-size:12px; margin:2px 0 6px; white-space:pre-wrap; }
+  .muted { color:var(--muted); font-size:12px; }
+  a { color:#8fb0ff; }
+  #msg { margin-top:12px; font-size:13px; white-space:pre-wrap; }
+  .counter { float:right; font-size:11px; color:var(--muted); }
+</style>
+</head>
+<body>
+<header><h1>📤 Shorts & Reels Uploader</h1><span class="muted">YouTube · Instagram · Facebook</span></header>
+<main>
+  <section>
+    <div class="card">
+      <h2>New post</h2>
+      <div id="drop">Drop a vertical video here or click to choose<br><span class="muted">MP4, 9:16, ideally under 90 seconds</span></div>
+      <input type="file" id="file" accept="video/*" hidden>
+      <video id="preview" controls muted></video>
+
+      <label>Main caption <button class="small secondary" type="button" id="copyAll" style="float:right">Copy to all platforms ↓</button></label>
+      <textarea id="mainCaption" placeholder="Write once, then copy to all platforms and tweak each one"></textarea>
+
+      <div class="platform" data-p="youtube">
+        <div class="platform-head"><input type="checkbox" id="on-youtube"> YouTube Shorts <span class="tag" id="tag-youtube"></span></div>
+        <div class="platform-body">
+          <label>Title <span class="counter" id="cnt-yt_title"></span></label>
+          <input type="text" id="yt_title" maxlength="100">
+          <label>Description <span class="counter" id="cnt-yt_caption"></span></label>
+          <textarea id="yt_caption" maxlength="5000"></textarea>
+          <label>Visibility</label>
+          <select id="yt_privacy"><option value="public">Public</option><option value="unlisted">Unlisted</option><option value="private">Private</option></select>
+        </div>
+      </div>
+
+      <div class="platform" data-p="instagram">
+        <div class="platform-head"><input type="checkbox" id="on-instagram"> Instagram Reels <span class="tag" id="tag-instagram"></span></div>
+        <div class="platform-body">
+          <label>Caption <span class="counter" id="cnt-ig_caption"></span></label>
+          <textarea id="ig_caption" maxlength="2200"></textarea>
+        </div>
+      </div>
+
+      <div class="platform" data-p="facebook">
+        <div class="platform-head"><input type="checkbox" id="on-facebook"> Facebook Reels <span class="tag" id="tag-facebook"></span></div>
+        <div class="platform-body">
+          <label>Description <span class="counter" id="cnt-fb_caption"></span></label>
+          <textarea id="fb_caption"></textarea>
+        </div>
+      </div>
+
+      <label>When</label>
+      <div class="row">
+        <label class="row" style="margin:0;color:var(--text)"><input type="radio" name="when" value="now" checked> Post now</label>
+        <label class="row" style="margin:0;color:var(--text)"><input type="radio" name="when" value="later"> Schedule</label>
+        <input type="datetime-local" id="scheduled_at" style="width:auto;display:none">
+      </div>
+      <p class="muted">Scheduled posts go out only while this app is running.</p>
+
+      <button id="submit" style="width:100%;margin-top:8px">Upload</button>
+      <div id="msg"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <h2>Accounts</h2>
+      <div id="accounts">Loading…</div>
+    </div>
+    <div class="card" style="margin-top:24px">
+      <h2>Uploads</h2>
+      <div id="posts"><span class="muted">Nothing yet.</span></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let selectedFile = null;
+let accountState = null;
+
+// ---------- file picking
+const drop = $("drop");
+drop.onclick = () => $("file").click();
+$("file").onchange = (e) => setFile(e.target.files[0]);
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
+drop.ondragleave = () => drop.classList.remove("over");
+drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); setFile(e.dataTransfer.files[0]); };
+
+function setFile(f) {
+  if (!f) return;
+  selectedFile = f;
+  drop.innerHTML = `<b>${escapeHtml(f.name)}</b><br><span class="muted">${(f.size/1048576).toFixed(1)} MB — click to change</span>`;
+  const v = $("preview");
+  v.src = URL.createObjectURL(f);
+  v.style.display = "block";
+  v.onloadedmetadata = () => {
+    const notes = [];
+    if (v.videoWidth >= v.videoHeight) notes.push("⚠ Video is not vertical — Shorts/Reels should be 9:16.");
+    if (v.duration > 90) notes.push(`⚠ ${Math.round(v.duration)}s long — Facebook Reels max is 90s, YouTube Shorts max is 180s.`);
+    showMsg(notes.join("\n"), notes.length ? "var(--warn)" : null);
+  };
+}
+
+// ---------- platform toggles
+for (const p of ["youtube", "instagram", "facebook"]) {
+  const cb = $("on-" + p);
+  cb.onchange = () => cb.closest(".platform").classList.toggle("on", cb.checked);
+}
+
+$("copyAll").onclick = () => {
+  const t = $("mainCaption").value;
+  for (const id of ["yt_caption", "ig_caption", "fb_caption"]) { $(id).value = t; updateCount(id); }
+  if (!$("yt_title").value) { $("yt_title").value = t.split("\n")[0].replace(/#\w+/g, "").trim().slice(0, 100); updateCount("yt_title"); }
+};
+
+const limits = { yt_title: 100, yt_caption: 5000, ig_caption: 2200, fb_caption: null };
+function updateCount(id) {
+  const n = $(id).value.length, max = limits[id];
+  $("cnt-" + id).textContent = max ? `${n}/${max}` : `${n}`;
+}
+for (const id in limits) { $(id).oninput = () => updateCount(id); updateCount(id); }
+
+// ---------- schedule
+document.querySelectorAll("input[name=when]").forEach(r => r.onchange = () => {
+  $("scheduled_at").style.display = r.value === "later" && r.checked ? "inline-block" : "none";
+});
+
+// ---------- submit
+$("submit").onclick = async () => {
+  const platforms = ["youtube", "instagram", "facebook"].filter(p => $("on-" + p).checked);
+  if (!selectedFile) return showMsg("Choose a video first.", "var(--bad)");
+  if (!platforms.length) return showMsg("Tick at least one platform.", "var(--bad)");
+  if (platforms.includes("youtube") && !$("yt_title").value.trim()) return showMsg("YouTube needs a title.", "var(--bad)");
+  const later = document.querySelector("input[name=when]:checked").value === "later";
+  if (later && !$("scheduled_at").value) return showMsg("Pick a date and time.", "var(--bad)");
+
+  const fd = new FormData();
+  fd.append("file", selectedFile);
+  fd.append("platforms", JSON.stringify(platforms));
+  for (const id of ["yt_title", "yt_caption", "yt_privacy", "ig_caption", "fb_caption"]) fd.append(id, $(id).value);
+  fd.append("scheduled_at", later ? $("scheduled_at").value : "");
+
+  $("submit").disabled = true;
+  showMsg("Sending video to the uploader…");
+  try {
+    const res = await fetch("/api/posts", { method: "POST", body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Failed");
+    const w = data.warnings && data.warnings.length ? "\n⚠ " + data.warnings.join("\n⚠ ") : "";
+    showMsg((later ? "Scheduled! ✅" : "Queued — uploading now ✅") + w, w ? "var(--warn)" : "var(--ok)");
+    loadPosts();
+  } catch (e) {
+    showMsg("Error: " + e.message, "var(--bad)");
+  } finally {
+    $("submit").disabled = false;
+  }
+};
+
+function showMsg(t, color) { $("msg").textContent = t || ""; $("msg").style.color = color || "var(--text)"; }
+function escapeHtml(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+// ---------- accounts
+async function loadAccounts() {
+  const a = await (await fetch("/api/accounts")).json();
+  accountState = a;
+  const yt = a.youtube, m = a.meta;
+  const row = (ok, name, detail, actions) =>
+    `<div class="acct"><div><span class="dot ${ok ? "ok" : ""}"></span><b>${name}</b><div class="muted" style="margin-left:17px">${detail}</div></div><div class="row">${actions}</div></div>`;
+
+  let html = "";
+  html += row(yt.connected, "YouTube",
+    yt.connected ? escapeHtml(yt.account) : (yt.configured ? "Not connected" : "Add Google keys to .env (see SETUP.md)"),
+    yt.connected ? `<button class="small secondary" onclick="disconnect('youtube')">Disconnect</button>`
+                 : `<button class="small" ${yt.configured ? "" : "disabled"} onclick="location='/auth/youtube/start'">Connect</button>`);
+
+  const metaDetail = m.connected
+    ? `Page: ${escapeHtml(m.facebook_account)}<br>Instagram: ${m.instagram_account ? escapeHtml(m.instagram_account) : "<span style='color:var(--bad)'>not linked to this Page</span>"}`
+    : (m.configured ? "Not connected" : "Add Meta keys to .env (see SETUP.md)");
+  let pagePicker = "";
+  if (m.connected && m.pages.length > 1) {
+    pagePicker = `<select onchange="pickPage(this.value)" style="width:auto">` +
+      m.pages.map(p => `<option value="${p.id}" ${p.id === m.selected_page ? "selected" : ""}>${escapeHtml(p.name)}${p.ig_username ? " (@" + escapeHtml(p.ig_username) + ")" : ""}</option>`).join("") +
+      `</select>`;
+  }
+  html += row(m.connected, "Facebook + Instagram", metaDetail,
+    pagePicker + (m.connected ? `<button class="small secondary" onclick="disconnect('meta')">Disconnect</button>`
+                              : `<button class="small" ${m.configured ? "" : "disabled"} onclick="location='/auth/meta/start'">Connect</button>`));
+  $("accounts").innerHTML = html;
+
+  setTag("youtube", yt.connected);
+  setTag("facebook", m.connected);
+  setTag("instagram", m.connected && !!m.instagram_account);
+}
+
+function setTag(p, ok) {
+  $("tag-" + p).textContent = ok ? "connected" : "not connected";
+  $("tag-" + p).style.color = ok ? "var(--ok)" : "var(--bad)";
+}
+
+async function disconnect(name) {
+  if (!confirm("Disconnect this account?")) return;
+  await fetch("/api/disconnect/" + name, { method: "POST" });
+  loadAccounts();
+}
+async function pickPage(id) {
+  const fd = new FormData(); fd.append("page_id", id);
+  await fetch("/api/meta/page", { method: "POST", body: fd });
+  loadAccounts();
+}
+
+// ---------- posts list
+const labels = { youtube: "YouTube", instagram: "Instagram", facebook: "Facebook" };
+async function loadPosts() {
+  const posts = await (await fetch("/api/posts")).json();
+  if (!posts.length) { $("posts").innerHTML = `<span class="muted">Nothing yet.</span>`; return; }
+  $("posts").innerHTML = posts.map(p => {
+    const when = p.scheduled_at ? `Scheduled for ${new Date(p.scheduled_at).toLocaleString()}` : `Added ${new Date(p.created_at).toLocaleString()}`;
+    const busy = p.jobs.some(j => j.status === "uploading");
+    const jobs = p.jobs.map(j => {
+      let right = "";
+      if (j.status === "done" && j.result_url) right = `<a href="${escapeHtml(j.result_url)}" target="_blank">View ↗</a>`;
+      if (j.status === "failed" || j.status === "cancelled") right = `<button class="small secondary" onclick="jobAction(${j.id},'retry')">Retry</button>`;
+      if (j.status === "pending") right = `<button class="small secondary" onclick="jobAction(${j.id},'cancel')">Cancel</button>`;
+      const label = j.status === "uploading" ? (j.progress || "uploading") : j.status;
+      return `<div class="job"><span><b>${labels[j.platform]}</b> · <span class="st-${j.status}">${escapeHtml(label)}</span></span>${right}</div>` +
+             (j.error ? `<div class="err">${escapeHtml(j.error)}</div>` : "");
+    }).join("");
+    return `<div class="post"><div class="row" style="justify-content:space-between"><b>${escapeHtml(p.original_name)}</b>` +
+           `${busy ? "" : `<button class="small secondary" onclick="delPost(${p.id})">Delete</button>`}</div>` +
+           `<div class="muted">${when}</div>${jobs}</div>`;
+  }).join("");
+}
+
+async function jobAction(id, action) {
+  const res = await fetch(`/api/jobs/${id}/${action}`, { method: "POST" });
+  if (!res.ok) alert((await res.json()).detail);
+  loadPosts();
+}
+async function delPost(id) {
+  if (!confirm("Delete this post from the list and remove the video file from this PC? (Already-published videos stay online.)")) return;
+  const res = await fetch(`/api/posts/${id}`, { method: "DELETE" });
+  if (!res.ok) alert((await res.json()).detail);
+  loadPosts();
+}
+
+loadAccounts();
+loadPosts();
+setInterval(loadPosts, 3000);
+</script>
+</body>
+</html>
